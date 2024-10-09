@@ -1,12 +1,9 @@
 import numpy as np
-import matplotlib.pyplot as plt
-from matplotlib.animation import FuncAnimation
 import time
 import logging
 import cflib.crtp
 from cflib.crazyflie import Crazyflie
 from cflib.crazyflie.syncCrazyflie import SyncCrazyflie
-from cflib.crazyflie.log import LogConfig
 from cflib.utils import uri_helper
 
 # Constants
@@ -18,10 +15,10 @@ R = 6371000      # Radius of Earth (meters)
 r_0 = 500000     # Perigee altitude (meters)
 v_0 = 9000       # Initial Tangential Velocity of Spacecraft at Perigee (m/s)
 
-
-# Crazyflie URI and initialization
+# Crazyflie URIs and initialization
 URI1 = uri_helper.uri_from_env(default='radio://0/80/2M/E7E7E7E7E1')
 URI2 = uri_helper.uri_from_env(default='radio://0/30/2M/E7E7E7E7E1')
+URI3 = uri_helper.uri_from_env(default='radio://0/60/2M/E7E7E7E7E1')
 cflib.crtp.init_drivers()
 logging.basicConfig(level=logging.ERROR)
 
@@ -64,7 +61,7 @@ def mean_to_true(time_in_seconds):
     f = f % (2 * np.pi)
     return f
 
-def plot_orbit(num_points=100):
+def plot_orbit(num_points=1000):
     total_time = 2 * np.pi * np.sqrt(semi_major_axis()**3 / mu)
     t = np.linspace(0, total_time, num_points)
     theta = mean_to_true(t)
@@ -73,30 +70,60 @@ def plot_orbit(num_points=100):
     y = r * np.sin(theta) / scale_factor
     return x, y
 
+def calculate_orbit_around_point(center_x, center_y, radius, num_points=100):
+    angles = np.linspace(0, 2 * np.pi, num_points)
+    x = center_x + radius * np.cos(angles)
+    y = center_y + radius * np.sin(angles)
+    return x, y
+
 def main():
-    # Generate the orbital path
-    x, y = plot_orbit()
+    # Generate the orbital path for hlc1
+    x1, y1 = plot_orbit()
+
+    # Define the radius of the orbit for hlc3 around hlc1
+    orbit_radius = 0.5  # in meters
+    num_points_for_hlc3 = len(x1)  # match the points to keep them in sync
 
     with SyncCrazyflie(URI1, cf=Crazyflie(rw_cache='./cache')) as scf1, \
-        SyncCrazyflie(URI2, cf=Crazyflie(rw_cache='./cache')) as scf2:
+        SyncCrazyflie(URI2, cf=Crazyflie(rw_cache='./cache')) as scf2, \
+        SyncCrazyflie(URI3, cf=Crazyflie(rw_cache='./cache')) as scf3:
+        
         hlc1 = scf1.cf.high_level_commander
         hlc2 = scf2.cf.high_level_commander
+        hlc3 = scf3.cf.high_level_commander
+        
         hlc1.takeoff(0.5, 1.0)
         hlc2.takeoff(0.5, 1.0)
+        hlc3.takeoff(0.5, 1.0)
         time.sleep(2)
 
         try:
-            time_interval = 0.5
-            for i in range(len(x)):
-                # Move to the next (x, y, 0) position from the orbital path
+            time_interval = 0.1
+            for i in range(len(x1)):
+                # Calculate the center position for hlc3's orbit around hlc1
+                center_x = x1[i]
+                center_y = y1[i]
+                
+                # Calculate positions for hlc3 to orbit around hlc1 at the current point
+                orbit_x, orbit_y = calculate_orbit_around_point(center_x, center_y, orbit_radius, num_points_for_hlc3)
+                x3 = orbit_x[i % num_points_for_hlc3]
+                y3 = orbit_y[i % num_points_for_hlc3]
+
+                # Move hlc1 along its orbital path
+                hlc1.go_to(center_x, center_y, 1.5, 0, 1.0, relative=False)
+                # Move hlc2 to a fixed point or in a different path
                 hlc2.go_to(0, 0, 1.5, 0, 1.0, relative=False)
-                hlc1.go_to(x[i], y[i], 1.5, 0, 1.0, relative=False)
+                # Move hlc3 around hlc1's current position
+                hlc3.go_to(x3, y3, 1.5, 0, 1.0, relative=False)
+
                 time.sleep(time_interval)
-                print(f'Moving to x={x[i]:.2f}, y={y[i]:.2f}, z=1')
+                print(f'hlc1 moving to x={center_x:.2f}, y={center_y:.2f}')
+                print(f'hlc3 orbiting around hlc1 at x={x3:.2f}, y={y3:.2f}')
 
         finally:
             hlc1.land(0, 2.0)
             hlc2.land(0, 2.0)
+            hlc3.land(0, 2.0)
             print("Landing...")
 
 if __name__ == "__main__":
