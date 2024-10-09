@@ -9,7 +9,7 @@ from cflib.utils import uri_helper
 # URI for each drone (Sun, Earth, Moon)
 URI_SUN = 'radio://0/20/2M/E7E7E7E7E1'
 URI_EARTH = 'radio://0/80/2M/E7E7E7E7E1'
-URI_MOON = 'radio://0/30/2M/E7E7E7E7E3'
+URI_MOON = 'radio://0/60/2M/E7E7E7E7E1'
 
 cflib.crtp.init_drivers()
 logging.basicConfig(level=logging.ERROR)
@@ -45,11 +45,11 @@ def main():
         hlc_earth = scf_earth.cf.high_level_commander
         hlc_moon = scf_moon.cf.high_level_commander
 
-        # Take off all drones to the same height (z=1.0 meters)
-        hlc_sun.takeoff(1.0, 2.0)
-        hlc_earth.takeoff(1.0, 2.0)
-        hlc_moon.takeoff(1.0, 2.0)
-        time.sleep(2)
+        # Take off all drones to the same height (z=1.0 meters), and wait for a longer time
+        hlc_sun.takeoff(1.0, 5.0)  # Take off over 5 seconds to slow down the initial takeoff
+        hlc_earth.takeoff(1.0, 5.0)
+        hlc_moon.takeoff(1.0, 5.0)
+        time.sleep(5)  # Wait for takeoff to finish properly
 
         start_time = time.time()
 
