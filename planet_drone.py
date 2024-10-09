@@ -96,7 +96,7 @@ def reset_estimator(scf):
 
 def main():
     # Generate the orbital path
-    x, y, time_intervals = plot_orbit()
+    x, y = plot_orbit()
 
     with SyncCrazyflie(URI1, cf=Crazyflie(rw_cache='./cache')) as scf1:
         reset_estimator(scf1)
@@ -106,11 +106,13 @@ def main():
         time.sleep(2)
 
         try:
+            time_interval = 0.5
+
             for i in range(len(x)):
                 # Move to the next (x, y, 0) position from the orbital path
                 hlc1.go_to(x[i], y[i], 1.0, 0, 1.0, relative=False)
-                time.sleep(time_intervals[i] - time_intervals[i - 1] if i > 0 else 1)
-                print(f'Moving to x={x[i]:.2f}, y={y[i]:.2f}, z=0')
+                time.sleep(time_interval)
+                print(f'Moving to x={x[i]:.2f}, y={y[i]:.2f}, z=1')
 
         finally:
             hlc1.land(0, 2.0)
