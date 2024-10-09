@@ -63,7 +63,7 @@ def mean_to_true(time_in_seconds):
     f = f % (2 * np.pi)
     return f
 
-def plot_orbit(num_points=2000):
+def plot_orbit(num_points=100):
     total_time = 2 * np.pi * np.sqrt(semi_major_axis()**3 / mu)
     t = np.linspace(0, total_time, num_points)
     theta = mean_to_true(t)
