@@ -5,12 +5,11 @@ from cflib.crazyflie import Crazyflie
 from cflib.crazyflie.syncCrazyflie import SyncCrazyflie
 from cflib.utils import uri_helper
 from cflib.positioning.motion_commander import MotionCommander
-from scipy.integrate import solve_ivp
 
 # URI for each drone
 URI1 = uri_helper.uri_from_env(default='radio://0/30/2M/E7E7E7E7E1')  # Sun
-URI2 = uri_helper.uri_from_env(default='radio://0/30/2M/E7E7E7E7E2')  # Earth
-URI3 = uri_helper.uri_from_env(default='radio://0/30/2M/E7E7E7E7E3')  # Moon
+URI2 = uri_helper.uri_from_env(default='radio://0/20/2M/E7E7E7E7E2')  # Earth
+URI3 = uri_helper.uri_from_env(default='radio://0/80/2M/E7E7E7E7E3')  # Moon
 
 cflib.crtp.init_drivers()
 logging.basicConfig(level=logging.ERROR)
@@ -37,9 +36,7 @@ def elliptical_orbit(time, semi_major, semi_minor, angular_speed):
     return x, y
 
 def main():
-    # Sun (URI1) remains static at (0, 0, 1.0)
-    # Earth (URI2) orbits the sun in an elliptical orbit
-    # Moon (URI3) orbits the Earth in a circular orbit
+    # Sun (URI1) stays static, Earth (URI2) moves in an elliptical orbit, Moon (URI3) orbits Earth in a circular orbit
     with SyncCrazyflie(URI1, cf=Crazyflie(rw_cache='./cache')) as scf1, \
          SyncCrazyflie(URI2, cf=Crazyflie(rw_cache='./cache')) as scf2, \
          SyncCrazyflie(URI3, cf=Crazyflie(rw_cache='./cache')) as scf3:
@@ -59,17 +56,23 @@ def main():
             mc_moon.take_off(1.0)
             time.sleep(2)
 
+            # Align drones on x-axis: Sun at x=0, Earth at x=1.5, Moon at x=1.9
+            go_to_position(mc_sun, 0.0, 0.0, 1.0)
+            go_to_position(mc_earth, 1.5, 0.0, 1.0)
+            go_to_position(mc_moon, 1.9, 0.0, 1.0)
+            time.sleep(2)
+
             start_time = time.time()
 
             while True:
                 t = time.time() - start_time
 
                 # Earth elliptical orbit around the Sun
-                earth_x, earth_y = elliptical_orbit(t, 1.5, 1.0, 0.1)  # a=1.5, b=1.0
+                earth_x, earth_y = elliptical_orbit(t, 1.5, 1.0, 0.2)  # a=1.5, b=1.0, angular speed=0.2
                 go_to_position(mc_earth, earth_x, earth_y, 1.0)
 
                 # Moon circular orbit around the Earth
-                moon_x_offset, moon_y_offset = circular_orbit(t, 0.4, 0.5)  # radius=0.4
+                moon_x_offset, moon_y_offset = circular_orbit(t, 0.4, 1.0)  # radius=0.4, angular speed=1.0
                 moon_x = earth_x + moon_x_offset
                 moon_y = earth_y + moon_y_offset
                 go_to_position(mc_moon, moon_x, moon_y, 1.0)
