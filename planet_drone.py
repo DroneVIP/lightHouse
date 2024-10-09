@@ -20,7 +20,8 @@ v_0 = 9000       # Initial Tangential Velocity of Spacecraft at Perigee (m/s)
 
 
 # Crazyflie URI and initialization
-URI1 = uri_helper.uri_from_env(default='radio://0/30/2M/E7E7E7E7E1')
+URI1 = uri_helper.uri_from_env(default='radio://0/80/2M/E7E7E7E7E1')
+URI2 = uri_helper.uri_from_env(default='radio://0/30/2M/E7E7E7E7E1')
 cflib.crtp.init_drivers()
 logging.basicConfig(level=logging.ERROR)
 
@@ -70,50 +71,32 @@ def plot_orbit(num_points=100):
     r = keplers_first_law(theta)
     x = r * np.cos(theta) / scale_factor
     y = r * np.sin(theta) / scale_factor
-    return x, y, t
-
-def position_callback(timestamp, data, logconf):
-    x = data['kalman.stateX']
-    y = data['kalman.stateY']
-    z = data['kalman.stateZ']
-    print(f'Position: x={x:.2f}, y={y:.2f}, z={z:.2f}')
-
-def start_position_logging(scf):
-    log_conf = LogConfig(name='Position', period_in_ms=200)
-    log_conf.add_variable('kalman.stateX', 'float')
-    log_conf.add_variable('kalman.stateY', 'float')
-    log_conf.add_variable('kalman.stateZ', 'float')
-    scf.cf.log.add_config(log_conf)
-    log_conf.data_received_cb.add_callback(position_callback)
-    log_conf.start()
-
-def reset_estimator(scf):
-    cf = scf.cf
-    cf.param.set_value('kalman.resetEstimation', '1')
-    time.sleep(0.1)
-    cf.param.set_value('kalman.resetEstimation', '0')
-    time.sleep(2)
+    return x, y
 
 def main():
     # Generate the orbital path
-    x, y, time_intervals = plot_orbit()
+    x, y = plot_orbit()
 
-    with SyncCrazyflie(URI1, cf=Crazyflie(rw_cache='./cache')) as scf1:
-        reset_estimator(scf1)
-        start_position_logging(scf1)
+    with SyncCrazyflie(URI1, cf=Crazyflie(rw_cache='./cache')) as scf1, \
+        SyncCrazyflie(URI2, cf=Crazyflie(rw_cache='./cache')) as scf2:
         hlc1 = scf1.cf.high_level_commander
+        hlc2 = scf2.cf.high_level_commander
         hlc1.takeoff(0.5, 1.0)
+        hlc2.takeoff(0.5, 1.0)
         time.sleep(2)
 
         try:
+            time_interval = 0.5
             for i in range(len(x)):
                 # Move to the next (x, y, 0) position from the orbital path
-                hlc1.go_to(x[i], y[i], 1.0, 0, 1.0, relative=False)
-                time.sleep(time_intervals[i] - time_intervals[i - 1] if i > 0 else 1)
-                print(f'Moving to x={x[i]:.2f}, y={y[i]:.2f}, z=0')
+                hlc2.go_to(0, 0, 1.5, 0, 1.0, relative=False)
+                hlc1.go_to(x[i], y[i], 1.5, 0, 1.0, relative=False)
+                time.sleep(time_interval)
+                print(f'Moving to x={x[i]:.2f}, y={y[i]:.2f}, z=1')
 
         finally:
             hlc1.land(0, 2.0)
+            hlc2.land(0, 2.0)
             print("Landing...")
 
 if __name__ == "__main__":
