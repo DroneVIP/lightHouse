@@ -4,7 +4,6 @@ import numpy as np
 from cflib.crazyflie import Crazyflie
 from cflib.crazyflie.syncCrazyflie import SyncCrazyflie
 from cflib.utils import uri_helper
-from cflib.positioning.motion_commander import MotionCommander
 
 # URI for each drone
 URI1 = uri_helper.uri_from_env(default='radio://0/30/2M/E7E7E7E7E1')  # Sun
@@ -14,7 +13,6 @@ URI3 = uri_helper.uri_from_env(default='radio://0/30/2M/E7E7E7E7E3')  # Moon
 cflib.crtp.init_drivers()
 logging.basicConfig(level=logging.ERROR)
 
-# Helper functions
 def reset_estimator(scf):
     cf = scf.cf
     cf.param.set_value('kalman.resetEstimation', '1')
@@ -22,68 +20,62 @@ def reset_estimator(scf):
     cf.param.set_value('kalman.resetEstimation', '0')
     time.sleep(2)
 
-def go_to_position(mc, x, y, z, speed=0.3):
-    mc.move_to(x, y, z, velocity=speed)
+def elliptical_orbit(t, semi_major, semi_minor, angular_speed):
+    x = semi_major * np.cos(angular_speed * t)
+    y = semi_minor * np.sin(angular_speed * t)
+    return x, y
 
 def circular_orbit(t, radius, angular_speed):
     x = radius * np.cos(angular_speed * t)
     y = radius * np.sin(angular_speed * t)
     return x, y
 
-def elliptical_orbit(t, semi_major, semi_minor, angular_speed):
-    x = semi_major * np.cos(angular_speed * t)
-    y = semi_minor * np.sin(angular_speed * t)
-    return x, y
-
 def main():
-    # Sun stays static, Earth moves in an elliptical orbit, Moon orbits Earth in a circular orbit
-    with SyncCrazyflie(URI1, cf=Crazyflie(rw_cache='./cache')) as scf1, \
-         SyncCrazyflie(URI2, cf=Crazyflie(rw_cache='./cache')) as scf2, \
-         SyncCrazyflie(URI3, cf=Crazyflie(rw_cache='./cache')) as scf3:
+    with SyncCrazyflie(URI1, cf=Crazyflie(rw_cache='./cache')) as scf_sun, \
+         SyncCrazyflie(URI2, cf=Crazyflie(rw_cache='./cache')) as scf_earth, \
+         SyncCrazyflie(URI3, cf=Crazyflie(rw_cache='./cache')) as scf_moon:
 
-        reset_estimator(scf1)
-        reset_estimator(scf2)
-        reset_estimator(scf3)
+        reset_estimator(scf_sun)
+        reset_estimator(scf_earth)
+        reset_estimator(scf_moon)
 
-        mc_sun = MotionCommander(scf1)  # Sun stays static
-        mc_earth = MotionCommander(scf2)  # Earth motion
-        mc_moon = MotionCommander(scf3)  # Moon motion
+        hlc_sun = scf_sun.cf.high_level_commander
+        hlc_earth = scf_earth.cf.high_level_commander
+        hlc_moon = scf_moon.cf.high_level_commander
+
+        # Take off all drones to the same height (z=1.0 meters)
+        hlc_sun.takeoff(1.0, 2.0)
+        hlc_earth.takeoff(1.0, 2.0)
+        hlc_moon.takeoff(1.0, 2.0)
+        time.sleep(2)
+
+        start_time = time.time()
 
         try:
-            # Take off all drones to the same height (1.0 meters)
-            mc_sun.take_off(1.0)
-            mc_earth.take_off(1.0)
-            mc_moon.take_off(1.0)
-            time.sleep(2)
-
-            # Align drones on x-axis: Sun at x=0, Earth at x=1.5, Moon at x=1.9
-            go_to_position(mc_sun, 0.0, 0.0, 1.0)
-            go_to_position(mc_earth, 1.5, 0.0, 1.0)
-            go_to_position(mc_moon, 1.9, 0.0, 1.0)
-            time.sleep(2)
-
-            start_time = time.time()
-
             while True:
                 t = time.time() - start_time
 
+                # Sun remains static at (0, 0, 1.0)
+                hlc_sun.go_to(0.0, 0.0, 1.0, 0, 2.0, relative=False)
+
                 # Earth elliptical orbit around the Sun
                 earth_x, earth_y = elliptical_orbit(t, 1.5, 1.0, 0.2)  # a=1.5, b=1.0, angular speed=0.2
-                go_to_position(mc_earth, earth_x, earth_y, 1.0)
+                hlc_earth.go_to(earth_x, earth_y, 1.0, 0, 2.0, relative=False)
 
                 # Moon circular orbit around the Earth
-                moon_x_offset, moon_y_offset = circular_orbit(t, 0.4, 1.0)  # radius=0.4, angular speed=1.0
+                moon_x_offset, moon_y_offset = circular_orbit(t, 0.4, 0.5)  # radius=0.4, angular speed=0.5
                 moon_x = earth_x + moon_x_offset
                 moon_y = earth_y + moon_y_offset
-                go_to_position(mc_moon, moon_x, moon_y, 1.0)
+                hlc_moon.go_to(moon_x, moon_y, 1.0, 0, 2.0, relative=False)
 
                 time.sleep(0.1)
 
         finally:
             # Land all drones when interrupted
-            mc_sun.land()
-            mc_earth.land()
-            mc_moon.land()
+            hlc_sun.land(0.0, 2.0)
+            hlc_earth.land(0.0, 2.0)
+            hlc_moon.land(0.0, 2.0)
+            time.sleep(2)
 
 if __name__ == "__main__":
     main()
