@@ -8,8 +8,8 @@ from cflib.positioning.motion_commander import MotionCommander
 
 # URI for each drone
 URI1 = uri_helper.uri_from_env(default='radio://0/30/2M/E7E7E7E7E1')  # Sun
-URI2 = uri_helper.uri_from_env(default='radio://0/20/2M/E7E7E7E7E2')  # Earth
-URI3 = uri_helper.uri_from_env(default='radio://0/80/2M/E7E7E7E7E3')  # Moon
+URI2 = uri_helper.uri_from_env(default='radio://0/30/2M/E7E7E7E7E2')  # Earth
+URI3 = uri_helper.uri_from_env(default='radio://0/30/2M/E7E7E7E7E3')  # Moon
 
 cflib.crtp.init_drivers()
 logging.basicConfig(level=logging.ERROR)
