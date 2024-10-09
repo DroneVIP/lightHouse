@@ -25,18 +25,18 @@ def reset_estimator(scf):
 def go_to_position(mc, x, y, z, speed=0.3):
     mc.move_to(x, y, z, velocity=speed)
 
-def circular_orbit(time, radius, angular_speed):
-    x = radius * np.cos(angular_speed * time)
-    y = radius * np.sin(angular_speed * time)
+def circular_orbit(t, radius, angular_speed):
+    x = radius * np.cos(angular_speed * t)
+    y = radius * np.sin(angular_speed * t)
     return x, y
 
-def elliptical_orbit(time, semi_major, semi_minor, angular_speed):
-    x = semi_major * np.cos(angular_speed * time)
-    y = semi_minor * np.sin(angular_speed * time)
+def elliptical_orbit(t, semi_major, semi_minor, angular_speed):
+    x = semi_major * np.cos(angular_speed * t)
+    y = semi_minor * np.sin(angular_speed * t)
     return x, y
 
 def main():
-    # Sun (URI1) stays static, Earth (URI2) moves in an elliptical orbit, Moon (URI3) orbits Earth in a circular orbit
+    # Sun stays static, Earth moves in an elliptical orbit, Moon orbits Earth in a circular orbit
     with SyncCrazyflie(URI1, cf=Crazyflie(rw_cache='./cache')) as scf1, \
          SyncCrazyflie(URI2, cf=Crazyflie(rw_cache='./cache')) as scf2, \
          SyncCrazyflie(URI3, cf=Crazyflie(rw_cache='./cache')) as scf3:
