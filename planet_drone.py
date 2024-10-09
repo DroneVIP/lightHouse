@@ -72,35 +72,11 @@ def plot_orbit(num_points=100):
     y = r * np.sin(theta) / scale_factor
     return x, y, t
 
-def position_callback(timestamp, data, logconf):
-    x = data['kalman.stateX']
-    y = data['kalman.stateY']
-    z = data['kalman.stateZ']
-    print(f'Position: x={x:.2f}, y={y:.2f}, z={z:.2f}')
-
-def start_position_logging(scf):
-    log_conf = LogConfig(name='Position', period_in_ms=200)
-    log_conf.add_variable('kalman.stateX', 'float')
-    log_conf.add_variable('kalman.stateY', 'float')
-    log_conf.add_variable('kalman.stateZ', 'float')
-    scf.cf.log.add_config(log_conf)
-    log_conf.data_received_cb.add_callback(position_callback)
-    log_conf.start()
-
-def reset_estimator(scf):
-    cf = scf.cf
-    cf.param.set_value('kalman.resetEstimation', '1')
-    time.sleep(0.1)
-    cf.param.set_value('kalman.resetEstimation', '0')
-    time.sleep(2)
-
 def main():
     # Generate the orbital path
     x, y = plot_orbit()
 
     with SyncCrazyflie(URI1, cf=Crazyflie(rw_cache='./cache')) as scf1:
-        reset_estimator(scf1)
-        start_position_logging(scf1)
         hlc1 = scf1.cf.high_level_commander
         hlc1.takeoff(0.5, 1.0)
         time.sleep(2)
