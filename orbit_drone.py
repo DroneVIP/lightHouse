@@ -1,3 +1,4 @@
+import logging
 import time
 import cv2
 import numpy as np
@@ -10,6 +11,13 @@ from cflib.crazyflie.syncCrazyflie import SyncCrazyflie
 from cflib.crazyflie.log import LogConfig
 from cflib.crazyflie.syncLogger import SyncLogger
 from cflib.utils import uri_helper
+from cflib.positioning.motion_commander import MotionCommander
+
+import numpy as np
+import time
+from cflib.crazyflie import Crazyflie
+from cflib.crazyflie.syncCrazyflie import SyncCrazyflie
+from cflib.utils import uri_helper
 from cflib.crazyflie.high_level_commander import HighLevelCommander
 
 URI = uri_helper.uri_from_env(default='radio://0/30/2M/E7E7E7E7E1')
@@ -20,7 +28,7 @@ cflib.crtp.init_drivers()
 # Constants for scaled-down "orbit"
 semi_major_axis = 0.75  # 0.75 meters for 1.5m space
 eccentricity = 0.2  # You can adjust this to change orbit shape
-num_points = 400  # Increase number of points in the orbit for smoother movement
+num_points = 400  # Number of points in the orbit
 total_time = 20  # Total time for one orbit in seconds
 dt = total_time / num_points  # Time step for each point
 
@@ -43,14 +51,14 @@ def main():
         time.sleep(2)
 
         # Move to the starting position (0, 0, 1.5)
-        hlc.go_to(0, 0, 1.5, 0, 1.0)  # Reduce duration to 1 second
-        time.sleep(1)  # Pause to stabilize at (0, 0, 1.5)
+        hlc.go_to(0, 0, 1.5, 0, 2.0)  # Absolute coordinates with yaw=0
+        time.sleep(2)  # Pause to stabilize at (0, 0, 1.5)
 
         try:
             # Start the orbiting movement
             for i in range(num_points):
-                # Move to the next point on the orbit
-                hlc.go_to(x_orbit[i], y_orbit[i], 1.5, 0, 0.5)  # Reduce duration to 0.5 seconds
+                # Move to the next point on the orbit (scaled-down to 1.5m space)
+                hlc.go_to(x_orbit[i], y_orbit[i], 1.5, 0, dt)  # Altitude is kept at 1.5 meters, yaw=0
 
         finally:
             # Land after completing the orbit
