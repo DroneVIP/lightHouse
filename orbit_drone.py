@@ -13,6 +13,13 @@ from cflib.crazyflie.syncLogger import SyncLogger
 from cflib.utils import uri_helper
 from cflib.positioning.motion_commander import MotionCommander
 
+import numpy as np
+import time
+from cflib.crazyflie import Crazyflie
+from cflib.crazyflie.syncCrazyflie import SyncCrazyflie
+from cflib.utils import uri_helper
+from cflib.crazyflie.high_level_commander import HighLevelCommander
+
 URI = uri_helper.uri_from_env(default='radio://0/30/2M/E7E7E7E7E1')
 
 # Initialize Crazyflie
@@ -37,26 +44,27 @@ def main():
     x_orbit, y_orbit = calculate_orbit_points()
 
     with SyncCrazyflie(URI, cf=Crazyflie(rw_cache='./cache')) as scf:
-        mc = MotionCommander(scf)
+        hlc = HighLevelCommander(scf.cf)
 
-        # Takeoff
-        mc.take_off(0.5, 2.0)  # Take off to 0.5 meters
+        # Takeoff to 0.5m and hover for 2 seconds
+        hlc.takeoff(0.5, 2.0)
         time.sleep(2)
 
-        # Go to the starting position (0, 0, 1.5)
-        mc.go_to(0, 0, 1.5, velocity=0.2)
+        # Move to the starting position (0, 0, 1.5)
+        hlc.go_to(0, 0, 1.5, 0, 2.0)  # Absolute coordinates with yaw=0
         time.sleep(2)  # Pause to stabilize at (0, 0, 1.5)
 
         try:
             # Start the orbiting movement
             for i in range(num_points):
                 # Move to the next point on the orbit (scaled-down to 1.5m space)
-                mc.go_to(x_orbit[i], y_orbit[i], 1.5, velocity=0.2)  # Altitude is kept at 1.5 meters
+                hlc.go_to(x_orbit[i], y_orbit[i], 1.5, 0, 2.0)  # Altitude is kept at 1.5 meters, yaw=0
                 time.sleep(dt)  # Pause for a moment before moving to the next point
 
         finally:
             # Land after completing the orbit
-            mc.land()
+            hlc.land(0.0, 2.0)
+            hlc.stop()
 
 if __name__ == "__main__":
     main()
