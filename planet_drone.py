@@ -10,13 +10,13 @@ from cflib.crazyflie.log import LogConfig
 from cflib.utils import uri_helper
 
 # Constants
+scale_factor = 10e6  # Scale down distances by this factor
 G = 6.67430e-11  # Gravitational constant (m^3 kg^-1 s^-2)
 mu = 3.986e14    # Standard gravitational parameter for Earth (m^3 s^-2)
 M = 5.97e24      # Mass of Earth (kg)
 R = 6371000      # Radius of Earth (meters)
 r_0 = 500000     # Perigee altitude (meters)
 v_0 = 9000       # Initial Tangential Velocity of Spacecraft at Perigee (m/s)
-scale_factor = 1e6  # Scale down distances by this factor
 
 
 # Crazyflie URI and initialization
@@ -102,13 +102,13 @@ def main():
         reset_estimator(scf1)
         start_position_logging(scf1)
         hlc1 = scf1.cf.high_level_commander
-        hlc1.takeoff(0.5, 2.0)
+        hlc1.takeoff(0.5, 1.0)
         time.sleep(2)
 
         try:
             for i in range(len(x)):
                 # Move to the next (x, y, 0) position from the orbital path
-                hlc1.go_to(x[i], y[i], 0.0, 0, 1.0, relative=False)
+                hlc1.go_to(x[i], y[i], 1.0, 0, 1.0, relative=False)
                 time.sleep(time_intervals[i] - time_intervals[i - 1] if i > 0 else 1)
                 print(f'Moving to x={x[i]:.2f}, y={y[i]:.2f}, z=0')
 
