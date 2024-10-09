@@ -16,9 +16,9 @@ r_0 = 500000     # Perigee altitude (meters)
 v_0 = 9000       # Initial Tangential Velocity of Spacecraft at Perigee (m/s)
 
 # Crazyflie URIs and initialization
-URI1 = uri_helper.uri_from_env(default='radio://0/80/2M/E7E7E7E7E1')
-URI2 = uri_helper.uri_from_env(default='radio://0/30/2M/E7E7E7E7E1')
-URI3 = uri_helper.uri_from_env(default='radio://0/60/2M/E7E7E7E7E1')
+URI_EARTH = uri_helper.uri_from_env(default='radio://0/80/2M/E7E7E7E7E1')
+URI_SUN = uri_helper.uri_from_env(default='radio://0/30/2M/E7E7E7E7E1')
+URI_MOON = uri_helper.uri_from_env(default='radio://0/60/2M/E7E7E7E7E1')
 cflib.crtp.init_drivers()
 logging.basicConfig(level=logging.ERROR)
 
@@ -77,53 +77,57 @@ def calculate_orbit_around_point(center_x, center_y, radius, num_points=100):
     return x, y
 
 def main():
-    # Generate the orbital path for hlc1
+    # Generate the orbital path for earth
     x1, y1 = plot_orbit()
 
-    # Define the radius of the orbit for hlc3 around hlc1
+    # Define the radius of the orbit for moon around earth
     orbit_radius = 0.5  # in meters
-    num_points_for_hlc3 = len(x1)  # match the points to keep them in sync
+    num_points_for_moon = len(x1)  # Match the points for synchronization
 
-    with SyncCrazyflie(URI1, cf=Crazyflie(rw_cache='./cache')) as scf1, \
-        SyncCrazyflie(URI2, cf=Crazyflie(rw_cache='./cache')) as scf2, \
-        SyncCrazyflie(URI3, cf=Crazyflie(rw_cache='./cache')) as scf3:
+    # Make the moon move faster by using a shorter time interval for its orbit
+    moon_time_interval = 0.05  # Smaller interval for faster movement
+    earth_time_interval = 0.1  # Interval for earth's movement
+
+    with SyncCrazyflie(URI_EARTH, cf=Crazyflie(rw_cache='./cache')) as scf_earth, \
+        SyncCrazyflie(URI_SUN, cf=Crazyflie(rw_cache='./cache')) as scf_sun, \
+        SyncCrazyflie(URI_MOON, cf=Crazyflie(rw_cache='./cache')) as scf_moon:
         
-        hlc1 = scf1.cf.high_level_commander
-        hlc2 = scf2.cf.high_level_commander
-        hlc3 = scf3.cf.high_level_commander
+        earth = scf_earth.cf.high_level_commander
+        sun = scf_sun.cf.high_level_commander
+        moon = scf_moon.cf.high_level_commander
         
-        hlc1.takeoff(0.5, 1.0)
-        hlc2.takeoff(0.5, 1.0)
-        hlc3.takeoff(0.5, 1.0)
+        earth.takeoff(0.5, 2.0)
+        sun.takeoff(0.5, 2.0)
+        moon.takeoff(0.5, 2.0)
         time.sleep(2)
 
         try:
-            time_interval = 0.1
             for i in range(len(x1)):
-                # Calculate the center position for hlc3's orbit around hlc1
+                # Calculate the center position for moon's orbit around earth
                 center_x = x1[i]
                 center_y = y1[i]
                 
-                # Calculate positions for hlc3 to orbit around hlc1 at the current point
-                orbit_x, orbit_y = calculate_orbit_around_point(center_x, center_y, orbit_radius, num_points_for_hlc3)
-                x3 = orbit_x[i % num_points_for_hlc3]
-                y3 = orbit_y[i % num_points_for_hlc3]
+                # Calculate positions for moon to orbit around earth at the current point
+                orbit_x, orbit_y = calculate_orbit_around_point(center_x, center_y, orbit_radius, num_points_for_moon)
+                x3 = orbit_x[i % num_points_for_moon]
+                y3 = orbit_y[i % num_points_for_moon]
 
-                # Move hlc1 along its orbital path
-                hlc1.go_to(center_x, center_y, 1.5, 0, 1.0, relative=False)
-                # Move hlc2 to a fixed point or in a different path
-                hlc2.go_to(0, 0, 1.5, 0, 1.0, relative=False)
-                # Move hlc3 around hlc1's current position
-                hlc3.go_to(x3, y3, 1.5, 0, 1.0, relative=False)
+                # Move earth along its orbital path
+                earth.go_to(center_x, center_y, 1.5, 0, 1.0, relative=False)
+                # Move sun to a fixed point or in a different path
+                sun.go_to(0, 0, 1.5, 0, 1.0, relative=False)
+                # Move moon around earth's current position more quickly
+                moon.go_to(x3, y3, 1.5, 0, 1.0, relative=False)
 
-                time.sleep(time_interval)
-                print(f'hlc1 moving to x={center_x:.2f}, y={center_y:.2f}')
-                print(f'hlc3 orbiting around hlc1 at x={x3:.2f}, y={y3:.2f}')
+                time.sleep(earth_time_interval)
+                print(f'earth moving to x={center_x:.2f}, y={center_y:.2f}')
+                print(f'moon orbiting around earth at x={x3:.2f}, y={y3:.2f}')
+                time.sleep(moon_time_interval - earth_time_interval)  # Adjust timing for smoother movement
 
         finally:
-            hlc1.land(0, 2.0)
-            hlc2.land(0, 2.0)
-            hlc3.land(0, 2.0)
+            earth.land(0, 2.0)
+            sun.land(0, 2.0)
+            moon.land(0, 2.0)
             print("Landing...")
 
 if __name__ == "__main__":
