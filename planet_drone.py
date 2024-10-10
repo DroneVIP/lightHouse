@@ -122,7 +122,6 @@ def main():
                 time.sleep(earth_time_interval)
                 print(f'earth moving to x={center_x:.2f}, y={center_y:.2f}')
                 print(f'moon orbiting around earth at x={x3:.2f}, y={y3:.2f}')
-                time.sleep(moon_time_interval - earth_time_interval)  # Adjust timing for smoother movement
 
         finally:
             earth.land(0, 2.0)
