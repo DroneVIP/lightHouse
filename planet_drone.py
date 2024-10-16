@@ -85,8 +85,8 @@ def main():
     num_points_for_moon = len(x1)  # Match the points for synchronization
 
     # Make the moon move faster by using a shorter time interval for its orbit
-    moon_time_interval = 0.05  # Smaller interval for faster movement
-    earth_time_interval = 0.1  # Interval for earth's movement
+    moon_time_interval = 0.03  # Smaller interval for faster movement
+    earth_time_interval = 0.07  # Interval for earth's movement
 
     with SyncCrazyflie(URI_EARTH, cf=Crazyflie(rw_cache='./cache')) as scf_earth, \
         SyncCrazyflie(URI_SUN, cf=Crazyflie(rw_cache='./cache')) as scf_sun, \
@@ -116,7 +116,7 @@ def main():
                 earth.go_to(center_x, center_y, 1.5, 0, 1.0, relative=False)
                 # Move sun to a fixed point or in a different path
                 sun.go_to(0, 0, 1.5, 0, 1.0, relative=False)
-                # Move moon around earth's current position more quickly
+                # Move moon around earth's current position
                 moon.go_to(x3, y3, 1.5, 0, 1.0, relative=False)
 
                 time.sleep(earth_time_interval)
