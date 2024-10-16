@@ -5,6 +5,7 @@ import cflib.crtp
 from cflib.crazyflie import Crazyflie
 from cflib.crazyflie.syncCrazyflie import SyncCrazyflie
 from cflib.utils import uri_helper
+from cflib.crazyflie.log import LogConfig
 
 # Constants
 scale_factor = 10e6  # Scale down distances by this factor
@@ -77,8 +78,29 @@ def calculate_orbit_around_point(center_x, center_y, radius, num_points=100):
     y = center_y + radius * np.sin(angles)
     return x, y
 
+# Initialize global variables for positions
+current_position_earth = [0.0, 0.0, 0.0]
+current_position_moon = [0.0, 0.0, 0.0]
 
-# Drones following predefined orbital path
+# Logging callbacks to update the drone positions
+def log_position_earth_callback(timestamp, data, logconf):
+    global current_position_earth
+    current_position_earth = [data['kalman.stateX'], data['kalman.stateY'], data['kalman.stateZ']]
+
+def log_position_moon_callback(timestamp, data, logconf):
+    global current_position_moon
+    current_position_moon = [data['kalman.stateX'], data['kalman.stateY'], data['kalman.stateZ']]
+
+# Function to set up position logging
+def start_position_logging(scf, callback):
+    log_conf = LogConfig(name='Position', period_in_ms=200)
+    log_conf.add_variable('kalman.stateX', 'float')
+    log_conf.add_variable('kalman.stateY', 'float')
+    log_conf.add_variable('kalman.stateZ', 'float')
+    scf.cf.log.add_config(log_conf)
+    log_conf.data_received_cb.add_callback(callback)
+    log_conf.start()
+
 
 # Add epsilon (neighborhood) and z leeway
 epsilon = 0.2  # Distance threshold to transition to next waypoint (neighborhood distance)
@@ -147,3 +169,5 @@ def main():
 
 if __name__ == "__main__":
     main()
+
+
