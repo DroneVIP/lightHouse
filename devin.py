@@ -112,7 +112,7 @@ def reset_estimator(scf):
 
 
 # Add epsilon (neighborhood) and z leeway
-epsilon = 0.2  # Distance threshold to transition to next waypoint (neighborhood distance)
+epsilon = 0.2 # Distance threshold to transition to next waypoint (neighborhood distance)
 z_epsilon = 0.05  # Allowed variation in z-axis (Z leeway)
 
 def reached_waypoint(current_position, target_position, epsilon):
@@ -157,25 +157,29 @@ def main():
 
         try:
             for i in range(len(x1)):
-                # Current positions of Earth and Moon
-                current_earth_position = get_position('earth')
                 orbit_x, orbit_y = calculate_orbit_around_point(x1[i], y1[i], orbit_radius, num_points_for_moon)
-                current_moon_position = [orbit_x[i % num_points_for_moon], orbit_y[i % num_points_for_moon], 1.5]
-                print(current_earth_position, current_earth_position)
+                earth_target_position = [x1[i], y1[i], 1.5]
+                moon_target_position = [orbit_x[i % num_points_for_moon], orbit_y[i % num_points_for_moon], 1.5]
 
-                # Check if within epsilon for both x,y, and z
-                if reached_waypoint(current_earth_position, [x1[i], y1[i], 1.5], epsilon) and \
-                   within_z_leeway(current_earth_position[2], 1.5, z_epsilon):
-                    earth.go_to(x1[(i+1) % len(x1)], y1[(i+1) % len(y1)], 1.5, 0, 1.0, relative=False)
+                while True:
+                    current_earth_position = get_position('earth')
+                    current_moon_position = get_position('moon')
 
-                if reached_waypoint(get_position('moon'), current_moon_position, epsilon) and \
-                   within_z_leeway(get_position('moon')[2], 1.5, z_epsilon):
-                    moon.go_to(orbit_x[(i+1) % num_points_for_moon], orbit_y[(i+1) % num_points_for_moon], 1.5, 0, 1.0, relative=False)
+                    earth.go_to(earth_target_position[0], earth_target_position[1], earth_target_position[2], 0, 1.0, relative=False)
+                    moon.go_to(moon_target_position[0], moon_target_position[1], moon_target_position[2], 0, 1.0, relative=False)
+                    sun.go_to(0, 0, 1.5, 0, 1.0, relative=False)
 
-                # Move sun to a fixed point
-                sun.go_to(0, 0, 1.5, 0, 1.0, relative=False)
 
-                time.sleep(earth_time_interval)
+                    # Check if within epsilon for both x,y, and z)
+                    if reached_waypoint(current_earth_position, earth_target_position, epsilon) and \
+                    within_z_leeway(current_earth_position[2], earth_target_position[2], z_epsilon):
+                        break
+
+                    if reached_waypoint(current_moon_position, moon_target_position, epsilon) and \
+                    within_z_leeway(current_moon_position[2], moon_target_position[2], z_epsilon):
+                        break
+
+                    time.sleep(earth_time_interval)
 
         finally:
             earth.land(0, 2.0)
