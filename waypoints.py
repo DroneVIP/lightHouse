@@ -93,37 +93,57 @@ def within_z_leeway(current_z, target_z, z_epsilon):
     """Check if current z is within the z leeway range."""
     return abs(current_z - target_z) < z_epsilon
 
-  def main():
+def main():
+
     # Generate the orbital path for earth
     x1, y1 = plot_orbit()
 
-    # Add epsilon and z leeway
-    epsilon = 0.2  # Neighborhood tolerance for waypoints
-    z_epsilon = 0.05  # Z-axis tolerance
+    # Define the radius of the orbit for moon around earth
+    orbit_radius = 0.5  # in meters
+    num_points_for_moon = len(x1)  # Match the points for synchronization 
 
+     # Make the moon move faster by using a shorter time interval for its orbit
+    moon_time_interval = 0.03  # Smaller interval for faster movement
     earth_time_interval = 0.07  # Interval for earth's movement
 
-    with SyncCrazyflie(URI_EARTH, cf=Crazyflie(rw_cache='./cache')) as scf_earth:
+    with SyncCrazyflie(URI_EARTH, cf=Crazyflie(rw_cache='./cache')) as scf_earth, \
+        SyncCrazyflie(URI_SUN, cf=Crazyflie(rw_cache='./cache')) as scf_sun, \
+        SyncCrazyflie(URI_MOON, cf=Crazyflie(rw_cache='./cache')) as scf_moon:
         
         earth = scf_earth.cf.high_level_commander
+        sun = scf_sun.cf.high_level_commander
+        moon = scf_moon.cf.high_level_commander
         
         earth.takeoff(0.5, 2.0)
+        sun.takeoff(0.5, 2.0)
+        moon.takeoff(0.5, 2.0)
         time.sleep(2)
 
         try:
             for i in range(len(x1)):
-                # Current position of Earth
+                # Current positions of Earth and Moon
                 current_earth_position = [x1[i], y1[i], 1.5]
+                orbit_x, orbit_y = calculate_orbit_around_point(x1[i], y1[i], orbit_radius, num_points_for_moon)
+                current_moon_position = [orbit_x[i % num_points_for_moon], orbit_y[i % num_points_for_moon], 1.5]
 
-                # Check if within epsilon for both x, y, and z
+                # Check if within epsilon for both x,y, and z
                 if reached_waypoint(earth.get_position(), current_earth_position, epsilon) and \
                    within_z_leeway(earth.get_position()[2], 1.5, z_epsilon):
                     earth.go_to(x1[(i+1) % len(x1)], y1[(i+1) % len(y1)], 1.5, 0, 1.0, relative=False)
+
+                if reached_waypoint(moon.get_position(), current_moon_position, epsilon) and \
+                   within_z_leeway(moon.get_position()[2], 1.5, z_epsilon):
+                    moon.go_to(orbit_x[(i+1) % num_points_for_moon], orbit_y[(i+1) % num_points_for_moon], 1.5, 0, 1.0, relative=False)
+
+                # Move sun to a fixed point
+                sun.go_to(0, 0, 1.5, 0, 1.0, relative=False)
 
                 time.sleep(earth_time_interval)
 
         finally:
             earth.land(0, 2.0)
+            sun.land(0, 2.0)
+            moon.land(0, 2.0)
 
 if __name__ == "__main__":
     main()

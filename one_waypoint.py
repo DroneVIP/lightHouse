@@ -93,7 +93,7 @@ def within_z_leeway(current_z, target_z, z_epsilon):
     """Check if current z is within the z leeway range."""
     return abs(current_z - target_z) < z_epsilon
 
-  def main():
+def main():
     # Generate the orbital path for earth
     x1, y1 = plot_orbit()
 
