@@ -16,9 +16,9 @@ r_0 = 500000     # Perigee altitude (m)
 v_0 = 9000       # Initial Tangential Velocity of Spacecraft at Perigee (m/s)
 
 # Crazyflie URIs and initialization
-URI_EARTH = uri_helper.uri_from_env(default='radio://0/8#0/2M/E7E7E7E7E1')
-#URI_SUN = uri_helper.uri_from_env(default='radio://0/30/2M/E7E7E7E7E1')
-#URI_MOON = uri_helper.uri_from_env(default='radio://0/60/2M/E7E7E7E7E1')
+URI_EARTH = uri_helper.uri_from_env(default='radio://0/80/2M/E7E7E7E7E1')
+URI_SUN = uri_helper.uri_from_env(default='radio://0/30/2M/E7E7E7E7E1')
+URI_MOON = uri_helper.uri_from_env(default='radio://0/60/2M/E7E7E7E7E1')
 cflib.crtp.init_drivers()
 logging.basicConfig(level=logging.ERROR)
 
@@ -102,7 +102,7 @@ def main():
     orbit_radius = 0.5  # in meters
     num_points_for_moon = len(x1)  # Match the points for synchronization 
 
-     # Make the moon move faster by using a shorter time interval for its orbit
+    # Make the moon move faster by using a shorter time interval for its orbit
     moon_time_interval = 0.03  # Smaller interval for faster movement
     earth_time_interval = 0.07  # Interval for earth's movement
 
