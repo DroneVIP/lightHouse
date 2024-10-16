@@ -78,20 +78,30 @@ def calculate_orbit_around_point(center_x, center_y, radius, num_points=100):
     y = center_y + radius * np.sin(angles)
     return x, y
 
-def position_callback(timestamp, data, logconf):
+
+current_positions = {
+    'earth': [0.0, 0.0, 0.0],
+    'sun': [0.0, 0.0, 0.0],
+    'moon': [0.0, 0.0, 0.0]
+}
+
+def position_callback(timestamp, data, logconf, drone_name):
     x = data['kalman.stateX']
     y = data['kalman.stateY']
     z = data['kalman.stateZ']
-    print(f'Position: x={x:.2f}, y={y:.2f}, z={z:.2f}')
+    current_positions[drone_name] = [x, y, z]
 
-def start_position_logging(scf):
+def start_position_logging(scf, drone_name):
     log_conf = LogConfig(name='Position', period_in_ms=200)
     log_conf.add_variable('kalman.stateX', 'float')
     log_conf.add_variable('kalman.stateY', 'float')
     log_conf.add_variable('kalman.stateZ', 'float')
     scf.cf.log.add_config(log_conf)
-    log_conf.data_received_cb.add_callback(position_callback)
+    log_conf.data_received_cb.add_callback(lambda timestamp, data, logconf: position_callback(timestamp, data, logconf, drone_name))
     log_conf.start()
+
+def get_position(drone_name):
+    return current_positions[drone_name]
 
 def reset_estimator(scf):
     cf = scf.cf
@@ -123,8 +133,6 @@ def main():
     orbit_radius = 0.5  # in meters
     num_points_for_moon = len(x1)  # Match the points for synchronization 
 
-    # Make the moon move faster by using a shorter time interval for its orbit
-    moon_time_interval = 0.03  # Smaller interval for faster movement
     earth_time_interval = 0.07  # Interval for earth's movement
 
     with SyncCrazyflie(URI_EARTH, cf=Crazyflie(rw_cache='./cache')) as scf_earth, \
@@ -134,33 +142,34 @@ def main():
         reset_estimator(scf_earth)
         reset_estimator(scf_sun)
         reset_estimator(scf_moon)
-        start_position_logging(scf_earth)
-        start_position_logging(scf_sun)
-        start_position_logging(scf_moon)
+        start_position_logging(scf_earth, 'earth')
+        start_position_logging(scf_sun, 'sun')
+        start_position_logging(scf_moon, 'moon')
 
         earth = scf_earth.cf.high_level_commander
         sun = scf_sun.cf.high_level_commander
         moon = scf_moon.cf.high_level_commander
 
-        earth.takeoff(0.5, 2.0)
-        sun.takeoff(0.5, 2.0)
-        moon.takeoff(0.5, 2.0)
-        time.sleep(2)
+        earth.takeoff(1.5, 10.0)
+        sun.takeoff(1.5, 10.0)
+        moon.takeoff(1.5, 10.0)
+        time.sleep(10)
 
         try:
             for i in range(len(x1)):
                 # Current positions of Earth and Moon
-                current_earth_position = earth.get_position()
+                current_earth_position = get_position('earth')
                 orbit_x, orbit_y = calculate_orbit_around_point(x1[i], y1[i], orbit_radius, num_points_for_moon)
                 current_moon_position = [orbit_x[i % num_points_for_moon], orbit_y[i % num_points_for_moon], 1.5]
+                print(current_earth_position, current_earth_position)
 
                 # Check if within epsilon for both x,y, and z
-                if reached_waypoint(earth.get_position(), current_earth_position, epsilon) and \
-                   within_z_leeway(earth.get_position()[2], 1.5, z_epsilon):
+                if reached_waypoint(current_earth_position, [x1[i], y1[i], 1.5], epsilon) and \
+                   within_z_leeway(current_earth_position[2], 1.5, z_epsilon):
                     earth.go_to(x1[(i+1) % len(x1)], y1[(i+1) % len(y1)], 1.5, 0, 1.0, relative=False)
 
-                if reached_waypoint(moon.get_position(), current_moon_position, epsilon) and \
-                   within_z_leeway(moon.get_position()[2], 1.5, z_epsilon):
+                if reached_waypoint(get_position('moon'), current_moon_position, epsilon) and \
+                   within_z_leeway(get_position('moon')[2], 1.5, z_epsilon):
                     moon.go_to(orbit_x[(i+1) % num_points_for_moon], orbit_y[(i+1) % num_points_for_moon], 1.5, 0, 1.0, relative=False)
 
                 # Move sun to a fixed point
