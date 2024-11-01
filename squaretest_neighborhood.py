@@ -12,12 +12,14 @@ URI = uri_helper.uri_from_env(default='radio://0/80/2M/E7E7E7E7E1')
 cflib.crtp.init_drivers()
 logging.basicConfig(level=logging.ERROR)
 
+current_position = (0, 0, 0)
+
 #Position logging
 def position_callback(timestamp, data, logconf):
     x = data['kalman.stateX']
     y = data['kalman.stateY']
     z = data['kalman.stateZ']
-    print(f'Position: x={x:.2f}, y={y:.2f}, z={z:.2f}')
+    current_position = [x, y, z]
 
 def start_position_logging(scf):
     log_conf = LogConfig(name='Position', period_in_ms=200)
@@ -27,6 +29,9 @@ def start_position_logging(scf):
     scf.cf.log.add_config(log_conf)
     log_conf.data_received_cb.add_callback(position_callback)
     log_conf.start()
+
+#def get_position(drone_name):
+ #   return current_position[drone_name]
 
 def reset_estimator(scf):
     cf = scf.cf
@@ -48,7 +53,6 @@ def within_z_leeway(current_z, target_z, z_epsilon):
     return abs(current_z - target_z) < z_epsilon
 
 def main():
-    current_position = (0, 0, 0)
 
     with SyncCrazyflie(URI, cf=Crazyflie(rw_cache='./cache')) as scf:
         reset_estimator(scf)
@@ -72,16 +76,15 @@ def main():
             hlc.go_to(target_x, target_y, target_z, 0, 5)
 
             # Wait until waypoint is reached
-            try:
-                while True:
-                    # Check if within epsilon and z leeway
-                    if (reached_waypoint(current_position, (target_x, target_y, target_z), epsilon) and within_z_leeway(current_position[2], target_z, z_epsilon)):
-                        print(f"Reached waypoint: x={target_x}, y={target_y}, z={target_z}")
-                        break
-                    time.sleep(1)
 
-            finally:    
-                hlc.land(0.0, 5)
+            while True:
+                # Check if within epsilon and z leeway
+                if (reached_waypoint(current_position, (target_x, target_y, target_z), epsilon) and within_z_leeway(current_position[2], target_z, z_epsilon)):
+                    print(f"Reached waypoint: x={target_x}, y={target_y}, z={target_z}")
+                    break
+            time.sleep(1)
+
+            hlc.land(0.0, 5)
 
 if __name__ == "__main__":
     main()
